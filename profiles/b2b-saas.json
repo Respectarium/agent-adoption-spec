@@ -1,0 +1,36 @@
+{
+  "profile_id": "b2b-saas",
+  "profile_name": "B2B SaaS",
+  "spec_version": "1.0.0",
+  "description": "Default profile for v1.0 of the Agent-Adoption Specification. Applies to commercial software-as-a-service businesses targeting business customers. All 25 spec checks are applicable to the b2b-saas profile. The weight assigned to each check determines its contribution to the score; checks with weight 0 are informational and do not contribute. Per-check weights are normative for this profile — alternative profiles MAY redistribute weights provided the per-check enum is respected (see SPEC.md §9).",
+  "checks": {
+    "robots-txt-exists":            { "category": "discoverability",     "weight": 7  },
+    "sitemap-exists":               { "category": "discoverability",     "weight": 4  },
+    "link-headers":                 { "category": "discoverability",     "weight": 0  },
+
+    "ai-bot-rules":                 { "category": "accessControl",       "weight": 7  },
+    "content-signals":              { "category": "accessControl",       "weight": 0  },
+    "web-bot-auth":                 { "category": "accessControl",       "weight": 0  },
+    "robots-allow-all":             { "category": "accessControl",       "weight": 0  },
+
+    "llms-txt-exists":              { "category": "contentReadability",  "weight": 0  },
+    "llms-txt-valid":               { "category": "contentReadability",  "weight": 0  },
+    "llms-txt-size":                { "category": "contentReadability",  "weight": 0  },
+    "llms-txt-has-optional-section":{ "category": "contentReadability",  "weight": 0  },
+    "markdown-url-support":         { "category": "contentReadability",  "weight": 8  },
+    "markdown-negotiation":         { "category": "contentReadability",  "weight": 5  },
+    "rendering-strategy":           { "category": "contentReadability",  "weight": 10 },
+    "page-size-html":               { "category": "contentReadability",  "weight": 6  },
+    "http-status-codes":            { "category": "contentReadability",  "weight": 6  },
+    "redirect-behavior":            { "category": "contentReadability",  "weight": 4  },
+    "agents-md-detection":          { "category": "contentReadability",  "weight": 0  },
+    "cache-header-hygiene":         { "category": "contentReadability",  "weight": 0  },
+
+    "api-catalog":                  { "category": "agentEndpoints",      "weight": 0  },
+    "oauth-discovery":              { "category": "agentEndpoints",      "weight": 6  },
+    "oauth-protected-resource":     { "category": "agentEndpoints",      "weight": 7  },
+    "mcp-server-card":              { "category": "agentEndpoints",      "weight": 10 },
+    "a2a-agent-card":               { "category": "agentEndpoints",      "weight": 0  },
+    "agent-skills":                 { "category": "agentEndpoints",      "weight": 0  }
+  }
+}

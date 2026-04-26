@@ -1,0 +1,399 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://respectarium.com/spec/agent-adoption/v1/schemas/output-v1.schema.json",
+  "title": "Agent-Adoption Specification v1.0 — Scanner Output",
+  "description": "Canonical JSON output schema for scanners conforming to the Agent-Adoption Specification v1.0. See https://respectarium.com/spec/agent-adoption/v1 for the prose specification (SPEC.md). This schema validates the wire format of a single scan response in normal (non-debug) mode.",
+  "type": "object",
+  "required": [
+    "specVersion",
+    "profile",
+    "scanner",
+    "domain",
+    "finalUrl",
+    "scannedAt",
+    "score",
+    "level",
+    "levelName",
+    "categoryReports",
+    "meta",
+    "clusters"
+  ],
+  "properties": {
+    "specVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "examples": ["1.0.0"],
+      "description": "The Agent-Adoption Specification version this scanner conforms to. Semver."
+    },
+    "profile": {
+      "type": "string",
+      "examples": ["b2b-saas"],
+      "description": "Identifier of the profile applied to this scan. References a profile bundled with the specification or a custom profile published by the implementation."
+    },
+    "scanner": { "$ref": "#/$defs/scanner" },
+    "domain": {
+      "type": "string",
+      "examples": ["example.com"],
+      "description": "The brand root domain (eTLD+1) that was scanned. Lowercase, no scheme, no trailing slash."
+    },
+    "finalUrl": {
+      "type": "string",
+      "format": "uri",
+      "examples": ["https://example.com/"],
+      "description": "The fully-qualified URL the scanner ended on after following redirects from the input domain."
+    },
+    "scannedAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 UTC timestamp at which the scan completed."
+    },
+    "score": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Aggregate score 0-100, computed per the spec's scoring formula (SPEC.md §7). When all scored checks return neutral, the score is 0."
+    },
+    "level": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "Assigned level (SPEC.md §8). Integer 1, 2, or 3. v1.0 conforming scanners MUST NOT emit level values outside this set."
+    },
+    "levelName": {
+      "type": "string",
+      "enum": ["Basic Web Presence", "AI-Aware", "Agent-Optimized"],
+      "description": "Human-readable level label, corresponding 1:1 to the level field. 1=Basic Web Presence, 2=AI-Aware, 3=Agent-Optimized."
+    },
+    "nextLevel": { "$ref": "#/$defs/nextLevel" },
+    "categoryReports": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "description": "Per-category reports in the canonical order: discoverability, accessControl, contentReadability, agentEndpoints. Conforming scanners MUST emit exactly these 4 reports in this order.",
+      "prefixItems": [
+        {
+          "allOf": [
+            { "$ref": "#/$defs/categoryReport" },
+            { "type": "object", "properties": { "category": { "const": "discoverability" } } }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/categoryReport" },
+            { "type": "object", "properties": { "category": { "const": "accessControl" } } }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/categoryReport" },
+            { "type": "object", "properties": { "category": { "const": "contentReadability" } } }
+          ]
+        },
+        {
+          "allOf": [
+            { "$ref": "#/$defs/categoryReport" },
+            { "type": "object", "properties": { "category": { "const": "agentEndpoints" } } }
+          ]
+        }
+      ],
+      "items": false
+    },
+    "meta": { "$ref": "#/$defs/meta" },
+    "clusters": { "$ref": "#/$defs/clusters" }
+  },
+  "additionalProperties": false,
+
+  "$defs": {
+    "scanner": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable name of the scanner implementation."
+        },
+        "version": {
+          "type": "string",
+          "description": "Version string for the scanner implementation. Format chosen by the implementation; semver recommended."
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "nextLevel": {
+      "type": "object",
+      "required": ["level", "levelName", "requirements"],
+      "description": "Pointer to the next level the scanned domain has not yet attained, with the unmet check requirements. Conforming scanners MUST emit this field at level 1 and level 2, and MUST OMIT this field entirely when level === 3 (the highest level defined in v1.0).",
+      "properties": {
+        "level": {
+          "type": "integer",
+          "enum": [2, 3],
+          "description": "The level the domain would advance to upon meeting requirements."
+        },
+        "levelName": {
+          "type": "string",
+          "enum": ["AI-Aware", "Agent-Optimized"],
+          "description": "Human-readable label of the next level."
+        },
+        "requirements": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+          },
+          "description": "Check IDs that must flip to status 'pass' for the domain to advance. v1.0 emits a single-check gate per level transition."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "categoryReport": {
+      "type": "object",
+      "required": ["category", "description", "score", "passed", "failed", "neutral", "checks"],
+      "properties": {
+        "category": {
+          "type": "string",
+          "enum": ["discoverability", "accessControl", "contentReadability", "agentEndpoints"]
+        },
+        "description": {
+          "type": "string",
+          "description": "Short description of what the category measures."
+        },
+        "score": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Per-category subscore 0-100. Computed using the same formula as the top-level score, scoped to scored checks within this category."
+        },
+        "passed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of all checks (scored + informational) in this category with status 'pass'."
+        },
+        "failed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of all checks (scored + informational) in this category with status 'fail'."
+        },
+        "neutral": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Count of all checks (scored + informational) in this category with status 'neutral'."
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/check" },
+          "description": "Per-check results within this category, in scanner-defined order."
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "check": {
+      "type": "object",
+      "required": [
+        "id",
+        "category",
+        "status",
+        "scored",
+        "weight",
+        "message",
+        "description",
+        "durationMs",
+        "specUrls",
+        "dependsOn"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$",
+          "description": "The canonical check ID. Lowercase kebab-case. v1.0 defines 25 IDs (see SPEC.md §5)."
+        },
+        "category": {
+          "type": "string",
+          "enum": ["discoverability", "accessControl", "contentReadability", "agentEndpoints"],
+          "description": "The category this check belongs to. Must match the enclosing categoryReport.category."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pass", "fail", "neutral"],
+          "description": "Per-check outcome (SPEC.md §6). pass/fail are binary verdicts; neutral means informational-only or hedge — excluded from scoring math."
+        },
+        "scored": {
+          "type": "boolean",
+          "description": "True if this check contributes to scoring; false if informational. Equivalent to (weight > 0) — both are emitted on the wire for client convenience."
+        },
+        "weight": {
+          "type": "integer",
+          "enum": [0, 4, 5, 6, 7, 8, 10],
+          "description": "Numeric weight per the v1.0 weight table (SPEC.md §5). 0 = informational. Weight 0 implies scored=false; weight > 0 implies scored=true."
+        },
+        "message": {
+          "type": "string",
+          "description": "One-line human-readable verdict explaining the status."
+        },
+        "description": {
+          "type": "string",
+          "description": "Longer (one-paragraph) description of what the check evaluates and why it matters."
+        },
+        "durationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Wall-clock time the scanner spent executing this check, in milliseconds."
+        },
+        "specUrls": {
+          "type": "array",
+          "items": { "type": "string", "format": "uri" },
+          "description": "URLs of relevant external standards, RFCs, or canonical references for the check's subject."
+        },
+        "dependsOn": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+          "description": "Check IDs whose results this check depends on. Empty array if independent."
+        },
+        "details": {
+          "type": "object",
+          "description": "Check-specific structured payload. Schema is check-defined; consumers MUST parse defensively. The spec does not constrain the internal shape (additionalProperties: true) — implementations MAY emit any fields here. Conforming scanners MUST NOT include a 'body' key (raw HTTP response bodies belong outside the wire response).",
+          "additionalProperties": true,
+          "properties": {
+            "body": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "meta": {
+      "type": "object",
+      "required": ["checksEvaluated", "checksSkipped", "scanDurationMs", "counters"],
+      "properties": {
+        "checksEvaluated": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of checks the scanner evaluated. v1.0 defines 25 checks; this field MAY differ from the spec-defined check count in later spec minor versions as checks are added."
+        },
+        "checksSkipped": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of checks the scanner did not evaluate (e.g., due to profile filtering or runtime conditions)."
+        },
+        "scanDurationMs": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total wall-clock duration of the scan on the server side, in milliseconds."
+        },
+        "counters": {
+          "type": "object",
+          "description": "Implementation-defined counters for telemetry/diagnostics. Each top-level key is a counter group whose value is an object of named integer metrics. Spec does not enumerate counter groups or metric names — additionalProperties is open at both levels.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+
+    "clusters": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "Cluster verdicts in canonical v1.0 order: htmlPath, spaRenderingCap, noViablePathCap. Top-level normative field — clusters are part of the score-computation discipline (see SPEC.md §7.3) and are required of every conforming scanner.",
+      "prefixItems": [
+        {
+          "type": "object",
+          "required": ["name", "kind", "triggered", "coefficient", "appliesTo", "message"],
+          "properties": {
+            "name": { "const": "htmlPath" },
+            "kind": { "const": "coefficient" },
+            "triggered": {
+              "type": "boolean",
+              "description": "True when the rendering-strategy check failed and the cluster zeroed page-size-html's weight."
+            },
+            "coefficient": {
+              "type": "integer",
+              "enum": [0, 1],
+              "description": "Multiplier applied to weights of the checks listed in appliesTo. 1 when not triggered (no effect); 0 when triggered (weight removed)."
+            },
+            "appliesTo": {
+              "type": "array",
+              "items": { "type": "string", "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$" },
+              "minItems": 1,
+              "description": "Check IDs whose weights are scaled by this cluster's coefficient."
+            },
+            "message": {
+              "type": "string",
+              "description": "Human-readable explanation of the cluster's verdict."
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["name", "kind", "triggered", "message"],
+          "properties": {
+            "name": { "const": "spaRenderingCap" },
+            "kind": { "const": "cap" },
+            "triggered": {
+              "type": "boolean",
+              "description": "True when rendering-strategy fails AND the SPA-shell or invisible-content threshold is crossed."
+            },
+            "capScore": {
+              "type": "integer",
+              "enum": [39, 59],
+              "description": "Score cap applied. 39 = severe (ratio >= 2.0 OR SPA shell short-circuit); 59 = moderate (1.2 < ratio < 2.0). MUST be present when triggered === true; MUST be absent when triggered === false."
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "if": {
+            "properties": { "triggered": { "const": true } }
+          },
+          "then": {
+            "required": ["capScore"]
+          },
+          "else": {
+            "not": { "required": ["capScore"] }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["name", "kind", "triggered", "message"],
+          "properties": {
+            "name": { "const": "noViablePathCap" },
+            "kind": { "const": "cap" },
+            "triggered": {
+              "type": "boolean",
+              "description": "True when ALL four agent-content viability checks (llms-txt-exists, rendering-strategy, markdown-url-support, markdown-negotiation) are non-pass AND at least 2 are explicit fail."
+            },
+            "capScore": {
+              "type": "integer",
+              "enum": [39],
+              "description": "Score cap applied (always 39). MUST be present when triggered === true; MUST be absent when triggered === false."
+            },
+            "message": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "if": {
+            "properties": { "triggered": { "const": true } }
+          },
+          "then": {
+            "required": ["capScore"]
+          },
+          "else": {
+            "not": { "required": ["capScore"] }
+          }
+        }
+      ],
+      "items": false
+    }
+  }
+}
